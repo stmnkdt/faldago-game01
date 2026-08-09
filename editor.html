@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ファルダゴ冒険譚 シナリオエディタ</title>
+<style>
+:root{--terra:#c96f4a;--terra-d:#a5532f;--cream:#fdf6ec;--sea:#2e7fa3;--sea-d:#1d5c7a;--sun:#f0b94a;--ink:#3a2e28}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Hiragino Maru Gothic ProN','BIZ UDGothic','Yu Gothic UI','Meiryo',sans-serif;background:#f2e9db;color:var(--ink);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{background:linear-gradient(180deg,var(--terra),var(--terra-d));color:#fff;padding:.6em 1em;display:flex;align-items:center;gap:1em;flex-wrap:wrap}
+header h1{font-size:1.05em;letter-spacing:.08em}
+header .sp{flex:1}
+.hbtn{font-family:inherit;font-size:.85em;padding:.4em 1em;border:none;border-radius:.5em;cursor:pointer;background:var(--sun);color:#4a3210;font-weight:bold}
+.hbtn.sub{background:rgba(255,255,255,.9);color:var(--ink)}
+main{flex:1;display:flex;min-height:0}
+#sidebar{width:230px;background:#faf3e6;border-right:2px solid #e0d2bd;display:flex;flex-direction:column;min-height:0}
+#sidebar .shead{padding:.6em .8em;font-weight:bold;font-size:.9em;color:var(--terra-d);border-bottom:1px solid #e0d2bd;display:flex;justify-content:space-between;align-items:center}
+#ev-list{flex:1;overflow-y:auto}
+.ev-item{padding:.55em .8em;border-bottom:1px solid #eee2d0;cursor:pointer;font-size:.85em}
+.ev-item:hover{background:#f4e8d5}
+.ev-item.sel{background:var(--sun);font-weight:bold}
+.ev-item .eid{font-size:.75em;color:#8a7a68}
+.ev-item.sel .eid{color:#6a5210}
+#editor-pane{flex:1;overflow-y:auto;padding:1em 1.4em;min-width:0}
+#help-pane{width:300px;background:#faf3e6;border-left:2px solid #e0d2bd;overflow-y:auto;padding:1em;font-size:.8em;line-height:1.7}
+#help-pane h3{color:var(--terra-d);margin:.8em 0 .3em;font-size:1em}
+#help-pane code{background:#eee2d0;border-radius:.3em;padding:0 .3em;font-size:.9em}
+fieldset{border:2px solid #e0d2bd;border-radius:.8em;padding:.8em 1em;margin-bottom:1em;background:#fff}
+legend{font-weight:bold;color:var(--sea-d);padding:0 .5em;font-size:.9em}
+.row{display:flex;gap:.6em;align-items:center;margin:.4em 0;flex-wrap:wrap}
+.row label{font-size:.82em;font-weight:bold;min-width:6.5em}
+input[type=text],input[type=number],select,textarea{font-family:inherit;font-size:.88em;padding:.35em .5em;border:1.5px solid #c9b8a5;border-radius:.4em;background:#fff}
+input[type=number]{width:5.5em}
+textarea{width:100%;resize:vertical;line-height:1.6}
+.scene-card{border:2px solid #d9e4ea;border-radius:.8em;margin:.7em 0;background:#fbfdfe}
+.scene-head{display:flex;align-items:center;gap:.5em;padding:.45em .8em;background:#e8f0f4;border-radius:.6em .6em 0 0;font-size:.85em;font-weight:bold;color:var(--sea-d);flex-wrap:wrap}
+.scene-body{padding:.6em .9em}
+.mini{font-size:.78em;padding:.25em .6em;border:none;border-radius:.4em;cursor:pointer;background:#d9cbb5;font-weight:bold;font-family:inherit}
+.mini.danger{background:#e0a293;color:#5a1f10}
+.mini.add{background:var(--sea);color:#fff}
+.choice-card{border:1.5px dashed #d9b8a0;border-radius:.6em;padding:.5em .8em;margin:.4em 0;background:#fdf9f2}
+.fx-grid{display:flex;gap:.5em;flex-wrap:wrap;align-items:center;font-size:.8em}
+.fx-grid input{width:4.2em}
+.fx-grid .fxl{font-weight:bold;color:#8a7a68}
+.note{font-size:.75em;color:#8a7a68;line-height:1.5}
+#preview-box{background:#2a221c;color:#fdf6ec;border-radius:.8em;padding:1em;font-size:.85em;line-height:1.8;max-height:20em;overflow-y:auto}
+#preview-box .pv-n{color:#b8a88f;font-style:italic}
+#preview-box .pv-sp{color:var(--sun);font-weight:bold}
+#preview-box .pv-ch{color:#8fd0e8;margin-left:1em}
+#preview-box .pv-fx{color:#a3d9a5;font-size:.85em;margin-left:1em}
+.empty-hint{text-align:center;color:#a5947e;padding:3em 1em;font-size:.9em;line-height:2}
+@media (max-width:900px){#help-pane{display:none}}
+@media (max-width:650px){main{flex-direction:column}#sidebar{width:100%;max-height:30vh}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎬 ファルダゴ冒険譚 シナリオエディタ</h1>
+  <div class="sp"></div>
+  <button class="hbtn sub" id="btn-sample">サンプル挿入</button>
+  <button class="hbtn sub" id="btn-import">📂 読み込む</button>
+  <button class="hbtn" id="btn-export">⬇ 書き出す(ゲーム用JSON)</button>
+  <input type="file" id="inp-import" accept=".json" style="display:none">
+</header>
+<main>
+  <div id="sidebar">
+    <div class="shead">イベント一覧 <button class="mini add" id="btn-add-ev">+ 追加</button></div>
+    <div id="ev-list"></div>
+  </div>
+  <div id="editor-pane"></div>
+  <div id="help-pane">
+    <h3>📖 使い方</h3>
+    「+ 追加」でイベントを作り、シーン(セリフ)を並べていきます。書き出したJSONは、ゲーム本体の「設定 → 追加シナリオを読み込む」で遊べます。
+    <h3>イベントの起こり方</h3>
+    プレイヤーが<b>場所</b>を訪れたとき、条件を満たすイベントのうち<b>優先度</b>が最も高いものが起こります(同率はランダム)。内蔵の物語イベントは優先度10前後、雑談は1〜3です。
+    <h3>条件</h3>
+    <code>○日目以降</code>・<code>時間帯</code>・<code>好感度</code>・<code>フラグ</code>を組み合わせられます。フラグは効果欄「フラグON」で立てた合言葉です。プロローグ済みの印は <code>prologue</code>。
+    <h3>シーンの流れ</h3>
+    上から順に再生されます。<b>ジャンプ先</b>は「次に飛ぶシーン番号」(0始まり)。選択肢で分岐した先の合流にも使います。空欄なら次のシーンへ。
+    <h3>話者</h3>
+    ナレーション / 主人公 / レオ / ティエラ / ウェイン / ロムド / ハオシェン / ニノン / 島の人。本文の <code>{name}</code> は主人公名に置き換わります。
+    <h3>キャラの口調(正典)</h3>
+    ・レオ: 一人称「俺」。自信家「すげーだろ!」。ツンデレ演技は禁止<br>
+    ・ティエラ: 一人称「私」。敬語を使わない。「〜だよ」「〜だね」<br>
+    ・ウェイン: 一人称「俺」。「〜だよ」。「〜だぜ」禁止<br>
+    ・ロムド: 一人称「俺」。粗いが面倒見のいい兄貴肌
+    <h3>アイテムID</h3>
+    <code>charm</code> お守り / <code>compass</code> コンパス / <code>bento</code> 弁当 / <code>gem_r</code>・<code>gem_b</code> 遺輝石 / <code>relic</code> 歯車 / <code>flower</code> 星詠み草 / <code>meat</code> 魔獣肉 / <code>oldcoin</code> 古代金貨
+    <h3>保存について</h3>
+    編集内容はこのブラウザに自動保存されます。ゲームに渡すときは必ず「書き出す」を使ってください。
+  </div>
+</main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const LSKEY="fedt_draft";
+const LOCS=[["workshop","レオの魔導具工房"],["diner","食堂"],["shop","装飾品店"],["plaza","広場"],["bureau","遺跡管理局"],["guild","ギルド連合本部"],["commons","共用スペース"],["port","港"],["inn","宿"]];
+const BGS=[["town","町なか"],["town_dawn","朝の町"],["town_eve","夕方の町"],["town_night","夜の町"],["port","港"],["port_eve","夕方の港"],["port_night","夜の港"],["interior","室内"],["ruins","遺跡島"],["ruins_deep","遺跡島・奥地"]];
+const SPEAKERS=[["n","ナレーション"],["pl","主人公"],["leo","レオ"],["tiera","ティエラ"],["wayne","ウェイン"],["romdo","ロムド"],["hao","ハオシェン"],["ninon","ニノン"],["mob","島の人"]];
+const CHARIDS=[["leo","レオ"],["tiera","ティエラ"],["wayne","ウェイン"],["romdo","ロムド"]];
+const TIMES=[["","いつでも"],["0","朝"],["1","昼"],["2","夜"]];
+const nameOf=(list,id)=>{const f=list.find(x=>x[0]===id);return f?f[1]:id;};
+
+let DATA={events:[]};
+let SEL=-1;
+
+/* ---------- 永続化 ---------- */
+function persist(){try{localStorage.setItem(LSKEY,JSON.stringify(DATA));}catch(e){}}
+function restore(){try{const d=JSON.parse(localStorage.getItem(LSKEY)||"null");if(d&&Array.isArray(d.events))DATA=d;}catch(e){}}
+
+/* ---------- モデル ---------- */
+function newEvent(){
+  const n=DATA.events.length+1;
+  return {id:"my_event_"+n,title:"新しいイベント"+n,loc:"plaza",once:true,prio:10,cond:{},scenes:[newScene()]};
+}
+function newScene(){return {bg:"town",sp:"n",text:"",ch:[],fx:{},jump:""};}
+function newChoice(){return {t:"選択肢",jump:"",fx:{},req:{}};}
+
+/* ---------- イベント一覧 ---------- */
+function renderList(){
+  const l=$("ev-list");l.innerHTML="";
+  DATA.events.forEach((e,i)=>{
+    const d=document.createElement("div");d.className="ev-item"+(i===SEL?" sel":"");
+    d.innerHTML=`<div>${e.title||"(無題)"}</div><div class="eid">${e.id} / ${nameOf(LOCS,e.loc)} / ${e.scenes.length}シーン</div>`;
+    d.onclick=()=>{SEL=i;renderAll();};
+    l.appendChild(d);
+  });
+}
+
+/* ---------- フォーム部品 ---------- */
+function inp(val,cb,attrs){
+  const i=document.createElement("input");i.type=attrs&&attrs.type||"text";
+  if(attrs&&attrs.w)i.style.width=attrs.w;
+  if(attrs&&attrs.ph)i.placeholder=attrs.ph;
+  i.value=val===undefined||val===null?"":val;
+  i.oninput=()=>{cb(i.value);persist();};
+  return i;
+}
+function sel(list,val,cb){
+  const s=document.createElement("select");
+  list.forEach(([v,n])=>{const o=document.createElement("option");o.value=v;o.textContent=n;s.appendChild(o);});
+  s.value=val||list[0][0];
+  s.onchange=()=>{cb(s.value);persist();renderPreview();};
+  return s;
+}
+function row(label,...els){
+  const r=document.createElement("div");r.className="row";
+  const l=document.createElement("label");l.textContent=label;r.appendChild(l);
+  els.forEach(e=>r.appendChild(e));
+  return r;
+}
+function numOrDel(obj,key,v){const n=parseInt(v,10);if(isNaN(n)||n===0)delete obj[key];else obj[key]=n;}
+function strOrDel(obj,key,v){v=v.trim();if(v)obj[key]=v;else delete obj[key];}
+
+/* ---------- 効果(fx)エディタ ---------- */
+function fxEditor(fx){
+  const wrap=document.createElement("div");wrap.className="fx-grid";
+  const lbl=t=>{const s=document.createElement("span");s.className="fxl";s.textContent=t;return s;};
+  wrap.appendChild(lbl("効果→ 好感度:"));
+  CHARIDS.forEach(([id,nm])=>{
+    wrap.appendChild(lbl(nm));
+    wrap.appendChild(inp((fx.aff||{})[id],v=>{fx.aff=fx.aff||{};numOrDel(fx.aff,id,v);if(!Object.keys(fx.aff).length)delete fx.aff;},{type:"number"}));
+  });
+  wrap.appendChild(lbl("お金"));
+  wrap.appendChild(inp(fx.money,v=>numOrDel(fx,"money",v),{type:"number"}));
+  wrap.appendChild(lbl("入手ID"));
+  wrap.appendChild(inp(fx.item,v=>strOrDel(fx,"item",v),{w:"6em",ph:"charm等"}));
+  wrap.appendChild(lbl("消費ID"));
+  wrap.appendChild(inp(fx.loseItem,v=>strOrDel(fx,"loseItem",v),{w:"6em"}));
+  wrap.appendChild(lbl("フラグON"));
+  wrap.appendChild(inp(fx.flag,v=>strOrDel(fx,"flag",v),{w:"7em",ph:"合言葉"}));
+  wrap.appendChild(lbl("フラグOFF"));
+  wrap.appendChild(inp(fx.unflag,v=>strOrDel(fx,"unflag",v),{w:"7em"}));
+  return wrap;
+}
+/* ---------- 選択肢条件(req)エディタ ---------- */
+function reqEditor(req){
+  const wrap=document.createElement("div");wrap.className="fx-grid";
+  const lbl=t=>{const s=document.createElement("span");s.className="fxl";s.textContent=t;return s;};
+  wrap.appendChild(lbl("選べる条件→ 所持金"));
+  wrap.appendChild(inp(req.money,v=>numOrDel(req,"money",v),{type:"number"}));
+  wrap.appendChild(lbl("アイテムID"));
+  wrap.appendChild(inp(req.item,v=>strOrDel(req,"item",v),{w:"6em"}));
+  wrap.appendChild(lbl("フラグ"));
+  wrap.appendChild(inp(req.flag,v=>strOrDel(req,"flag",v),{w:"7em"}));
+  return wrap;
+}
+
+/* ---------- メイン編集画面 ---------- */
+function renderEditor(){
+  const p=$("editor-pane");p.innerHTML="";
+  const e=DATA.events[SEL];
+  if(!e){p.innerHTML='<div class="empty-hint">← 左の「+ 追加」から新しいイベントを作るか、<br>「サンプル挿入」でお手本を見てみてね。</div>';return;}
+
+  /* 基本情報 */
+  const fs1=document.createElement("fieldset");
+  fs1.innerHTML="<legend>イベントの基本情報</legend>";
+  fs1.appendChild(row("イベントID",inp(e.id,v=>{e.id=v.trim()||e.id;renderList();},{ph:"半角英数(重複不可)"})));
+  fs1.appendChild(row("タイトル(メモ)",inp(e.title,v=>{e.title=v;renderList();})));
+  fs1.appendChild(row("起こる場所",sel(LOCS,e.loc,v=>{e.loc=v;renderList();})));
+  const prio=inp(e.prio,v=>numOrDel(e,"prio",v),{type:"number"});
+  const once=document.createElement("select");
+  [["1","一度だけ起こる"],["0","何度でも起こる"]].forEach(([v,n])=>{const o=document.createElement("option");o.value=v;o.textContent=n;once.appendChild(o);});
+  once.value=e.once?"1":"0";once.onchange=()=>{e.once=once.value==="1";persist();};
+  fs1.appendChild(row("優先度",prio,once));
+  const del=document.createElement("button");del.className="mini danger";del.textContent="🗑 このイベントを削除";
+  del.onclick=()=>{if(confirm("このイベントを削除しますか?")){DATA.events.splice(SEL,1);SEL=Math.min(SEL,DATA.events.length-1);persist();renderAll();}};
+  const dup=document.createElement("button");dup.className="mini";dup.textContent="⧉ 複製";
+  dup.onclick=()=>{const c=JSON.parse(JSON.stringify(e));c.id=e.id+"_copy";c.title=(e.title||"")+"のコピー";DATA.events.splice(SEL+1,0,c);SEL++;persist();renderAll();};
+  fs1.appendChild(row("操作",dup,del));
+  p.appendChild(fs1);
+
+  /* 条件 */
+  const fs2=document.createElement("fieldset");
+  fs2.innerHTML="<legend>起こる条件(すべて空欄なら いつでも)</legend>";
+  e.cond=e.cond||{};
+  fs2.appendChild(row("○日目以降",inp(e.cond.day,v=>numOrDel(e.cond,"day",v),{type:"number"}),sel(TIMES,e.cond.time===undefined?"":String(e.cond.time),v=>{if(v==="")delete e.cond.time;else e.cond.time=+v;})));
+  const affRow=document.createElement("div");affRow.className="row";
+  const al=document.createElement("label");al.textContent="必要好感度";affRow.appendChild(al);
+  CHARIDS.forEach(([id,nm])=>{
+    const s=document.createElement("span");s.className="fxl";s.textContent=nm;affRow.appendChild(s);
+    affRow.appendChild(inp((e.cond.aff||{})[id],v=>{e.cond.aff=e.cond.aff||{};numOrDel(e.cond.aff,id,v);if(!Object.keys(e.cond.aff).length)delete e.cond.aff;},{type:"number"}));
+  });
+  fs2.appendChild(affRow);
+  fs2.appendChild(row("必要フラグ",inp(e.cond.flag,v=>strOrDel(e.cond,"flag",v),{ph:"例: prologue"}),
+    (()=>{const l=document.createElement("label");l.textContent="このフラグがあると起きない";l.style.minWidth="auto";return l;})(),
+    inp(e.cond.notflag,v=>strOrDel(e.cond,"notflag",v))));
+  p.appendChild(fs2);
+
+  /* シーン */
+  const fs3=document.createElement("fieldset");
+  fs3.innerHTML="<legend>シーン(上から順に再生)</legend>";
+  e.scenes.forEach((sc,si)=>fs3.appendChild(sceneCard(e,sc,si)));
+  const addS=document.createElement("button");addS.className="mini add";addS.textContent="+ シーンを追加";
+  addS.onclick=()=>{e.scenes.push(newScene());persist();renderAll();};
+  fs3.appendChild(addS);
+  p.appendChild(fs3);
+
+  /* プレビュー */
+  const fs4=document.createElement("fieldset");
+  fs4.innerHTML="<legend>プレビュー(台本風)</legend>";
+  const pv=document.createElement("div");pv.id="preview-box";fs4.appendChild(pv);
+  p.appendChild(fs4);
+  renderPreview();
+}
+function sceneCard(e,sc,si){
+  const card=document.createElement("div");card.className="scene-card";
+  const head=document.createElement("div");head.className="scene-head";
+  head.innerHTML=`<span>シーン ${si}</span>`;
+  const up=document.createElement("button");up.className="mini";up.textContent="↑";
+  up.onclick=()=>{if(si>0){[e.scenes[si-1],e.scenes[si]]=[e.scenes[si],e.scenes[si-1]];persist();renderAll();}};
+  const down=document.createElement("button");down.className="mini";down.textContent="↓";
+  down.onclick=()=>{if(si<e.scenes.length-1){[e.scenes[si+1],e.scenes[si]]=[e.scenes[si],e.scenes[si+1]];persist();renderAll();}};
+  const delS=document.createElement("button");delS.className="mini danger";delS.textContent="🗑";
+  delS.onclick=()=>{if(e.scenes.length<=1){alert("シーンは最低1つ必要です");return;}if(confirm("シーン"+si+"を削除しますか?")){e.scenes.splice(si,1);persist();renderAll();}};
+  head.appendChild(up);head.appendChild(down);head.appendChild(delS);
+  head.appendChild(sel(BGS,sc.bg,v=>sc.bg=v));
+  head.appendChild(sel(SPEAKERS,sc.sp,v=>sc.sp=v));
+  const jl=document.createElement("span");jl.className="fxl";jl.textContent="ジャンプ先";head.appendChild(jl);
+  head.appendChild(inp(sc.jump,v=>{v=v.trim();sc.jump=v===""?"":+v;if(sc.jump==="")delete sc.jump;},{type:"number",w:"4.5em"}));
+  card.appendChild(head);
+  const body=document.createElement("div");body.className="scene-body";
+  const ta=document.createElement("textarea");ta.rows=2;ta.placeholder="セリフ・地の文({name}=主人公名)";ta.value=sc.text||"";
+  ta.oninput=()=>{sc.text=ta.value;persist();renderPreview();};
+  body.appendChild(ta);
+  sc.fx=sc.fx||{};
+  body.appendChild(fxEditor(sc.fx));
+  /* 選択肢 */
+  sc.ch=sc.ch||[];
+  sc.ch.forEach((c,ci)=>{
+    const cc=document.createElement("div");cc.className="choice-card";
+    const r1=document.createElement("div");r1.className="row";
+    const cl=document.createElement("span");cl.className="fxl";cl.textContent="選択肢"+(ci+1);r1.appendChild(cl);
+    r1.appendChild(inp(c.t,v=>{c.t=v;renderPreview();},{ph:"表示することば",w:"16em"}));
+    const jl2=document.createElement("span");jl2.className="fxl";jl2.textContent="ジャンプ先";r1.appendChild(jl2);
+    r1.appendChild(inp(c.jump,v=>{v=v.trim();if(v==="")delete c.jump;else c.jump=+v;},{type:"number",w:"4.5em"}));
+    const delC=document.createElement("button");delC.className="mini danger";delC.textContent="🗑";
+    delC.onclick=()=>{sc.ch.splice(ci,1);persist();renderAll();};
+    r1.appendChild(delC);
+    cc.appendChild(r1);
+    c.fx=c.fx||{};c.req=c.req||{};
+    cc.appendChild(fxEditor(c.fx));
+    cc.appendChild(reqEditor(c.req));
+    body.appendChild(cc);
+  });
+  const addC=document.createElement("button");addC.className="mini add";addC.textContent="+ 選択肢を追加";
+  addC.onclick=()=>{sc.ch.push(newChoice());persist();renderAll();};
+  body.appendChild(addC);
+  card.appendChild(body);
+  return card;
+}
+
+/* ---------- プレビュー ---------- */
+function renderPreview(){
+  const pv=$("preview-box");if(!pv)return;
+  const e=DATA.events[SEL];if(!e)return;
+  pv.innerHTML="";
+  e.scenes.forEach((sc,si)=>{
+    const d=document.createElement("div");
+    const spn=nameOf(SPEAKERS,sc.sp||"n");
+    const bgn=nameOf(BGS,sc.bg||"town");
+    let h=`<span class="pv-n">[${si}|${bgn}]</span> `;
+    if(sc.sp==="n"||!sc.sp)h+=`<span class="pv-n">${esc(sc.text||"")}</span>`;
+    else h+=`<span class="pv-sp">${spn}</span>「${esc(sc.text||"")}」`;
+    if(sc.jump!==undefined&&sc.jump!=="")h+=` <span class="pv-fx">→シーン${sc.jump}へ</span>`;
+    d.innerHTML=h;
+    pv.appendChild(d);
+    (sc.ch||[]).forEach(c=>{
+      const cd=document.createElement("div");cd.className="pv-ch";
+      cd.textContent=`▶ ${c.t}${c.jump!==undefined&&c.jump!==""?` →シーン${c.jump}へ`:""}`;
+      pv.appendChild(cd);
+    });
+    const fx=fxSummary(sc.fx);
+    if(fx){const fd=document.createElement("div");fd.className="pv-fx";fd.textContent="✦ "+fx;pv.appendChild(fd);}
+  });
+}
+function fxSummary(fx){
+  if(!fx)return "";
+  const p=[];
+  if(fx.aff)for(const k in fx.aff)p.push(nameOf(CHARIDS,k)+"好感度"+(fx.aff[k]>0?"+":"")+fx.aff[k]);
+  if(fx.money)p.push("お金"+(fx.money>0?"+":"")+fx.money);
+  if(fx.item)p.push("入手:"+fx.item);
+  if(fx.loseItem)p.push("消費:"+fx.loseItem);
+  if(fx.flag)p.push("フラグON:"+fx.flag);
+  if(fx.unflag)p.push("フラグOFF:"+fx.unflag);
+  return p.join(" / ");
+}
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;");}
+
+/* ---------- 入出力 ---------- */
+function cleanEvent(e){
+  const c=JSON.parse(JSON.stringify(e));
+  if(c.cond&&!Object.keys(c.cond).length)delete c.cond;
+  c.scenes.forEach(sc=>{
+    if(sc.fx&&!Object.keys(sc.fx).length)delete sc.fx;
+    if(sc.jump===""||sc.jump===undefined)delete sc.jump;
+    if(sc.ch){
+      sc.ch.forEach(ch=>{
+        if(ch.fx&&!Object.keys(ch.fx).length)delete ch.fx;
+        if(ch.req&&!Object.keys(ch.req).length)delete ch.req;
+        if(ch.jump===""||ch.jump===undefined)delete ch.jump;
+      });
+      if(!sc.ch.length)delete sc.ch;
+    }
+  });
+  return c;
+}
+$("btn-export").onclick=()=>{
+  if(!DATA.events.length){alert("イベントがありません");return;}
+  const ids=new Set();
+  for(const e of DATA.events){
+    if(ids.has(e.id)){alert("イベントIDが重複しています: "+e.id);return;}
+    ids.add(e.id);
+    if(!e.scenes.length){alert(e.id+" にシーンがありません");return;}
+  }
+  const out={format:"faldago-adv-scenario",version:1,events:DATA.events.map(cleanEvent)};
+  const blob=new Blob([JSON.stringify(out,null,1)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download="ファルダゴ追加シナリオ.json";a.click();
+};
+$("btn-import").onclick=()=>$("inp-import").click();
+$("inp-import").onchange=ev=>{
+  const f=ev.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result);
+      const evs=Array.isArray(d)?d:(d.events||[]);
+      if(!Array.isArray(evs)||!evs.length)throw new Error("events配列が見つかりません");
+      if(DATA.events.length&&!confirm("いまの編集内容に追記します。よろしいですか?"))return;
+      evs.forEach(e=>{e.cond=e.cond||{};e.scenes=(e.scenes||[]).map(s=>Object.assign(newScene(),s));});
+      DATA.events.push(...evs);
+      SEL=DATA.events.length-1;persist();renderAll();
+    }catch(err){alert("読み込み失敗: "+err.message);}
+  };
+  r.readAsText(f);ev.target.value="";
+};
+$("btn-add-ev").onclick=()=>{DATA.events.push(newEvent());SEL=DATA.events.length-1;persist();renderAll();};
+$("btn-sample").onclick=()=>{
+  DATA.events.push({
+    id:"sample_"+(DATA.events.length+1),title:"お手本: 広場の差し入れ",loc:"plaza",once:true,prio:10,
+    cond:{flag:"prologue",day:2},
+    scenes:[
+      {bg:"town",sp:"n",text:"広場を歩いていると、ウェインが大きな鍋を運んでいた。",fx:{},ch:[]},
+      {bg:"town",sp:"wayne",text:"あ、{name}! ちょうどよかった、味見係を探してたんだ。新作スープ、飲んでみない?",fx:{},ch:[
+        {t:"飲んでみる",fx:{aff:{wayne:2}},req:{},jump:2},
+        {t:"具材を聞いてからにする",fx:{aff:{wayne:1}},req:{},jump:3}
+      ]},
+      {bg:"town",sp:"wayne",text:"お、いい飲みっぷり! ……何の出汁かって? ふふ、聞かないのが作法だよ。",fx:{},ch:[],jump:4},
+      {bg:"town",sp:"wayne",text:"具材? えーっと……ふふ、聞かないのが作法だよ。",fx:{},ch:[]},
+      {bg:"town",sp:"n",text:"スープはあたたかくて、少し不思議な味がした。おいしかったので良しとする。",fx:{},ch:[]}
+    ]});
+  SEL=DATA.events.length-1;persist();renderAll();
+};
+
+function renderAll(){renderList();renderEditor();}
+restore();
+if(DATA.events.length)SEL=0;
+renderAll();
+</script>
+</body>
+</html>
